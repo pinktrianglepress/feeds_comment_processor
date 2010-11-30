@@ -1,0 +1,50 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_feeds_plugins().
+ */
+function feeds_comment_processor_feeds_plugins() {
+  $path = drupal_get_path('module', 'feeds_comment_processor');
+
+  $info = array();
+  $info['FeedsCommentProcessor'] = array(
+    'name' => 'Comment processor',
+    'description' => 'Create and update comments.',
+    'help' => 'Create and update comments from parsed content.',
+    'handler' => array(
+      'parent' => 'FeedsProcessor',
+      'class' => 'FeedsCommentProcessor',
+      'file' => 'FeedsCommentProcessor.inc',
+      'path' => $path,
+    ),
+  );
+  return $info;
+}
+
+/**
+ * Handles FeedsCommentProcessor specific hook_comment operations.
+ */
+function _feeds_comment_processor_comment(&$comment, $op) {
+  switch ($op) {
+    case 'insert':
+      if (isset($comment['feeds_comment_item'])) {
+        $comment['feeds_comment_item']->cid = $comment['cid'];
+        drupal_write_record('feeds_comment_item', $comment['feeds_comment_item']);
+      }
+      break;
+    case 'update':
+      if (isset($comment['feeds_comment_item'])) {
+        $comment['feeds_comment_item']->cid = $comment['cid'];
+        drupal_write_record('feeds_comment_item', $comment['feeds_comment_item'], 'cid');
+      }
+      break;
+    case 'delete':
+      db_query("DELETE FROM {feeds_comment_item} WHERE cid = %d", $comment->cid);
+      break;
+  }
+}
+
+function feeds_comment_processor_comment(&$a1, $op) {
+  _feeds_comment_processor_comment($a1, $op);
+}
