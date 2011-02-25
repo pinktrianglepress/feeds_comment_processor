@@ -1,4 +1,3 @@
-;$Id$
 name = Feeds Comment Processor
 description = Create and update comments from parsed content.
 package = Feeds
