@@ -24,7 +24,7 @@ function feeds_comment_processor_feeds_plugins() {
 /**
  * Implements hook_comment_insert().
  */
-function feeds_comment_processor_comment_insert(&$comment) {
+function feeds_comment_processor_comment_insert($comment) {
   if (isset($comment['feeds_comment_item'])) {
     $comment['feeds_comment_item']->cid = $comment['cid'];
     drupal_write_record('feeds_comment_item', $comment['feeds_comment_item']);
@@ -34,7 +34,7 @@ function feeds_comment_processor_comment_insert(&$comment) {
 /**
  * Implements hook_comment_update().
  */
-function feeds_comment_processor_comment_update(&$comment) {
+function feeds_comment_processor_comment_update($comment) {
   if (isset($comment['feeds_comment_item'])) {
     $comment['feeds_comment_item']->cid = $comment['cid'];
     drupal_write_record('feeds_comment_item', $comment['feeds_comment_item'], 'cid');
@@ -44,7 +44,7 @@ function feeds_comment_processor_comment_update(&$comment) {
 /**
  * Implements hook_comment_delete().
  */
-function feeds_comment_processor_comment_delete(&$comment) {
+function feeds_comment_processor_comment_delete($comment) {
   db_delete('feeds_comment_item')
   ->condition('cid', $comment->cid)
   ->execute();
