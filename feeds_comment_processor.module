@@ -25,9 +25,9 @@ function feeds_comment_processor_feeds_plugins() {
  * Implements hook_comment_insert().
  */
 function feeds_comment_processor_comment_insert($comment) {
-  if (isset($comment['feeds_comment_item'])) {
-    $comment['feeds_comment_item']->cid = $comment['cid'];
-    drupal_write_record('feeds_comment_item', $comment['feeds_comment_item']);
+  if (isset($comment->feeds_comment_item)) {
+    $comment->feeds_comment_item->cid = $comment->cid;
+    drupal_write_record('feeds_comment_item', $comment->feeds_comment_item);
   }
 }
 
@@ -35,9 +35,9 @@ function feeds_comment_processor_comment_insert($comment) {
  * Implements hook_comment_update().
  */
 function feeds_comment_processor_comment_update($comment) {
-  if (isset($comment['feeds_comment_item'])) {
-    $comment['feeds_comment_item']->cid = $comment['cid'];
-    drupal_write_record('feeds_comment_item', $comment['feeds_comment_item'], 'cid');
+  if (isset($comment->feeds_comment_item)) {
+    $comment->feeds_comment_item->cid = $comment->cid;
+    drupal_write_record('feeds_comment_item', $comment->feeds_comment_item, 'cid');
   }
 }
 
