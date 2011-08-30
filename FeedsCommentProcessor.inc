@@ -49,7 +49,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
           if (empty($comment->nid)) {
             throw new Exception("Unable create comment with empty NID");
           }
-          _feeds_comment_save((array)$comment);
+          _feeds_comment_save((array) $comment);
           if (!empty($cid)) {
             $batch->updated++;
           }
@@ -72,10 +72,10 @@ class FeedsCommentProcessor extends FeedsProcessor {
 
     // Set messages.
     if ($batch->created) {
-      drupal_set_message(format_plural($batch->created, 'Created @number comment', 'Created @number comments.', array('@number' => $batch->created,)));
+      drupal_set_message(format_plural($batch->created, 'Created @number comment', 'Created @number comments.', array('@number' => $batch->created)));
     }
     elseif ($batch->updated) {
-      drupal_set_message(format_plural($batch->updated, 'Updated @number comment.', 'Updated @number comments.', array('@number' => $batch->updated,)));
+      drupal_set_message(format_plural($batch->updated, 'Updated @number comment.', 'Updated @number comments.', array('@number' => $batch->updated)));
     }
     else {
       drupal_set_message(t('There are no new comments.'));
@@ -88,7 +88,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   public function clear(FeedsBatch $batch, FeedsSource $source) {
     if (!$batch->getTotal(FEEDS_CLEARING)) {
-      $total = db_result(db_query("SELECT COUNT(cid) FROM {feeds_comment_item} WHERE id = '%s' AND feed_nid = %d", $source->id, $source->feed_nid));
+      $total = db_query("SELECT COUNT(cid) FROM {feeds_comment_item} WHERE id = :id AND feed_nid = :feed_nid", array(':id' => $source->id, ':feed_nid' => $source->feed_nid))->fetchField();
       $batch->setTotal(FEEDS_CLEARING, $total);
     }
     $result = db_query_range("SELECT cid FROM {feeds_comment_item} WHERE id = '%s' AND feed_nid = %d", $source->id, $source->feed_nid, 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE));
@@ -159,9 +159,9 @@ class FeedsCommentProcessor extends FeedsProcessor {
     $form = array();
     $format_options = array(FILTER_FORMAT_DEFAULT => t('Default format'));
     $formats = filter_formats();
-      foreach ($formats as $format) {
-        $format_options[$format->format] = $format->name;
-      }
+    foreach ($formats as $format) {
+      $format_options[$format->format] = $format->name;
+    }
     $form['input_format'] = array(
       '#type' => 'select',
       '#title' => t('Input format'),
@@ -169,7 +169,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       '#options' => $format_options,
       '#default_value' => $this->config['input_format'],
     );
-    $author = user_load(array('uid' => $this->config['author']));
+    $author = user_load($this->config['author']);
     $form['author'] = array(
       '#type' => 'textfield',
       '#title' => t('Author'),
@@ -231,7 +231,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       'pid' => array(
         'name' => t('Parent ID'),
         'description' => t('The cid to which this comment is a reply.'),
-       ),
+      ),
       'nid' => array(
         'name' => t('Node ID'),
         'description' => t('The nid to which this comment is a reply.'),
@@ -243,7 +243,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       'subject' => array(
         'name' => t('Title'),
         'description' => t('The title of the comment.'),
-       ),
+      ),
       'comment' => array(
         'name' => t('Comment'),
         'description' => t('The comment body.'),
@@ -251,7 +251,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       'hostname' => array(
         'name' => t('Hostname'),
         'description' => t('The author\'s host name.'),
-       ),
+      ),
       'timestamp' => array(
         'name' => t('Published date'),
         'description' => t('The UNIX time when a comment has been saved.'),
@@ -296,7 +296,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
     foreach ($this->uniqueTargets($source_item) as $target => $value) {
       switch ($target) {
         case 'guid':
-          $cid = db_result(db_query("SELECT cid FROM {feeds_comment_item} WHERE feed_nid = %d AND id = '%s' AND guid = '%s'", $source->feed_nid, $source->id, $value));
+          $cid = db_query("SELECT cid FROM {feeds_comment_item} WHERE feed_nid = :feed_nid AND id = :id AND guid = :id", array(':feed_nid' => $source->feed_nid, ':id' => $source->id, ':guid' => $value))->fetchField();
           break;
       }
       if ($cid) {
@@ -318,7 +318,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
     }
     else {
       if ($this->config['update_existing'] == FEEDS_UPDATE_EXISTING) {
-        $comment = _comment_load($cid);
+        $comment = comment_load($cid);
       }
       else {
         $comment->cid = $cid;
@@ -334,7 +334,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       $comment->feeds_comment_item->feed_nid = $feed_nid;
       $comment->feeds_comment_item->guid = '';
       $comment->uid = $this->config['author'];
-      $account = user_load(array('uid' => $comment->uid));
+      $account = user_load($comment->uid);
       $comment->name = $account->name;
       $comment->mail = $account->mail;
       $comment->status = 0;
@@ -369,7 +369,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    * @return Empty string if no item is found, hash otherwise.
    */
   protected function getHash($cid) {
-    $hash = db_result(db_query("SELECT hash FROM {feeds_comment_item} WHERE cid = %d", $cid));
+    $hash = db_query("SELECT hash FROM {feeds_comment_item} WHERE cid = :cid", array(':cid' => $cid))->fetchField();
     if ($hash) {
       // Return with the hash.
       return $hash;
@@ -380,7 +380,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
 
 function _feeds_comment_delete($cid) {
   module_load_include('inc', 'comment', 'comment.admin');
-  $to_delete = _comment_load($cid);
+  $to_delete = comment_load($cid);
   // Delete comment and its replies.
   _comment_delete_thread($to_delete);
   _comment_update_node_statistics($to_delete->nid);
@@ -408,13 +408,28 @@ function _feeds_comment_save($edit) {
   );
   if ($edit['cid']) {
     // Update the comment in the database.
-    db_query("UPDATE {comments} SET status = %d, timestamp = %d, subject = '%s', comment = '%s', format = %d, uid = %d, name = '%s', mail = '%s', homepage = '%s' WHERE cid = %d", $edit['status'], $edit['timestamp'], $edit['subject'], $edit['comment'], $edit['format'], $edit['uid'], $edit['name'], $edit['mail'], $edit['homepage'], $edit['cid']);
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query("UPDATE {comments} SET status = %d, timestamp = %d, subject = '%s', comment = '%s', format = %d, uid = %d, name = '%s', mail = '%s', homepage = '%s' WHERE cid = %d", $edit['status'], $edit['timestamp'], $edit['subject'], $edit['comment'], $edit['format'], $edit['uid'], $edit['name'], $edit['mail'], $edit['homepage'], $edit['cid']) */
+    db_update('comments')
+  ->fields(array(
+      'status' => $edit['status'],
+      'timestamp' => $edit['timestamp'],
+      'subject' => $edit['subject'],
+      'comment' => $edit['comment'],
+      'format' => $edit['format'],
+      'uid' => $edit['uid'],
+      'name' => $edit['name'],
+      'mail' => $edit['mail'],
+      'homepage' => $edit['homepage'],
+    ))
+  ->condition('cid', $edit['cid'])
+  ->execute();
 
     // Allow modules to respond to the updating of a comment.
     comment_invoke_comment($edit, 'update');
 
     // Add an entry to the watchdog log.
-    watchdog('content', 'Comment: updated %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/'. $edit['nid'], array('fragment' => 'comment-'. $edit['cid'])));
+    watchdog('content', 'Comment: updated %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/' . $edit['nid'], array('fragment' => 'comment-' . $edit['cid'])));
   }
   else {
     // Add the comment to database.
@@ -423,30 +438,30 @@ function _feeds_comment_save($edit) {
     if ($edit['pid'] == 0) {
       // This is a comment with no parent comment (depth 0): we start
       // by retrieving the maximum thread level.
-      $max = db_result(db_query('SELECT MAX(thread) FROM {comments} WHERE nid = %d', $edit['nid']));
+      $max = db_query('SELECT MAX(thread) FROM {comments} WHERE nid = :nid', array(':nid' => $edit['nid']))->fetchField();
 
       // Strip the "/" from the end of the thread.
       $max = rtrim($max, '/');
 
       // Finally, build the thread field for this new comment.
-      $thread = int2vancode(vancode2int($max) + 1) .'/';
+      $thread = int2vancode(vancode2int($max) + 1) . '/';
     }
     else {
       // This is comment with a parent comment: we increase
       // the part of the thread value at the proper depth.
 
       // Get the parent comment:
-      $parent = _comment_load($edit['pid']);
+      $parent = comment_load($edit['pid']);
 
       // Strip the "/" from the end of the parent thread.
       $parent->thread = (string) rtrim((string) $parent->thread, '/');
 
       // Get the max value in _this_ thread.
-      $max = db_result(db_query("SELECT MAX(thread) FROM {comments} WHERE thread LIKE '%s.%%' AND nid = %d", $parent->thread, $edit['nid']));
+      $max = db_query("SELECT MAX(thread) FROM {comments} WHERE thread LIKE '%s.%%' AND nid = :nid", array(':nid' => $parent->thread, '' => $edit['nid']))->fetchField();
 
       if ($max == '') {
         // First child of this parent.
-        $thread = $parent->thread .'.'. int2vancode(0) .'/';
+        $thread = $parent->thread . '.' . int2vancode(0) . '/';
       }
       else {
         // Strip the "/" at the end of the thread.
@@ -458,26 +473,44 @@ function _feeds_comment_save($edit) {
         $last = $parts[$parent_depth];
 
         // Finally, build the thread field for this new comment.
-        $thread = $parent->thread .'.'. int2vancode(vancode2int($last) + 1) .'/';
+        $thread = $parent->thread . '.' . int2vancode(vancode2int($last) + 1) . '/';
       }
     }
 
     if (empty($edit['timestamp'])) {
-      $edit['timestamp'] = time();
+      $edit['timestamp'] = REQUEST_TIME;
     }
 
     if ($edit['uid'] === $user->uid && isset($user->name)) { // '===' Need to modify anonymous users as well.
       $edit['name'] = $user->name;
     }
 
-    db_query("INSERT INTO {comments} (nid, pid, uid, subject, comment, format, hostname, timestamp, status, thread, name, mail, homepage) VALUES (%d, %d, %d, '%s', '%s', %d, '%s', %d, %d, '%s', '%s', '%s', '%s')", $edit['nid'], $edit['pid'], $edit['uid'], $edit['subject'], $edit['comment'], $edit['format'], empty($edit['hostname']) ? ip_address() : $edit['hostname'], $edit['timestamp'], $edit['status'], $thread, $edit['name'], $edit['mail'], $edit['homepage']);
+    // TODO Please review the conversion of this statement to the D7 database API syntax.
+    /* db_query("INSERT INTO {comments} (nid, pid, uid, subject, comment, format, hostname, timestamp, status, thread, name, mail, homepage) VALUES (%d, %d, %d, '%s', '%s', %d, '%s', %d, %d, '%s', '%s', '%s', '%s')", $edit['nid'], $edit['pid'], $edit['uid'], $edit['subject'], $edit['comment'], $edit['format'], empty($edit['hostname']) ? ip_address() : $edit['hostname'], $edit['timestamp'], $edit['status'], $thread, $edit['name'], $edit['mail'], $edit['homepage']) */
+    $id = db_insert('comments')
+  ->fields(array(
+      'nid' => $edit['nid'],
+      'pid' => $edit['pid'],
+      'uid' => $edit['uid'],
+      'subject' => $edit['subject'],
+      'comment' => $edit['comment'],
+      'format' => $edit['format'],
+      'hostname' => empty($edit['hostname']) ? ip_address() : $edit['hostname'],
+      'timestamp' => $edit['timestamp'],
+      'status' => $edit['status'],
+      'thread' => $thread,
+      'name' => $edit['name'],
+      'mail' => $edit['mail'],
+      'homepage' => $edit['homepage'],
+    ))
+  ->execute();
     $edit['cid'] = db_last_insert_id('comments', 'cid');
 
     // Tell the other modules a new comment has been submitted.
     comment_invoke_comment($edit, 'insert');
 
     // Add an entry to the watchdog log.
-    watchdog('content', 'Comment: added %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/'. $edit['nid'], array('fragment' => 'comment-'. $edit['cid'])));
+    watchdog('content', 'Comment: added %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/' . $edit['nid'], array('fragment' => 'comment-' . $edit['cid'])));
   }
   _comment_update_node_statistics($edit['nid']);
 

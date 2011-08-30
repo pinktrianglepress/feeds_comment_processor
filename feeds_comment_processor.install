@@ -1,18 +1,24 @@
 <?php
+/**
+ * @file
+ * Install, update and uninstall functions for the feeds_comment_processor module.
+ *
+ */
+
 
 /**
- * Implementation of hook_schema().
+ * Implements hook_schema().
  */
 function feeds_comment_processor_schema() {
   $schema = array();
   $schema['feeds_comment_item'] = array(
-    'description' => t('Stores additional information about feed item comments. Used by FeedsCommentProcessor.'),
+    'description' => 'Stores additional information about feed item comments. Used by FeedsCommentProcessor.',
     'fields' => array(
       'cid' => array(
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
-        'description' => t("Primary Key: The feed item comment's cid."),
+        'description' => "Primary Key: The feed item comment's cid.",
       ),
       'id' => array(
         'type' => 'varchar',
@@ -25,25 +31,25 @@ function feeds_comment_processor_schema() {
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
-        'description' => t("Node id of the owner feed, if available."),
+        'description' => "Node id of the owner feed, if available.",
       ),
       'imported' => array(
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
-        'description' => t('Import date of the feed item, as a Unix timestamp.'),
+        'description' => 'Import date of the feed item, as a Unix timestamp.',
       ),
       'guid' => array(
         'type' => 'text',
         'not null' => TRUE,
-        'description' => t('Unique identifier for the feed item.'),
+        'description' => 'Unique identifier for the feed item.',
       ),
       'hash' => array(
         'type' => 'varchar',
         'length' => 32, // The length of an MD5 hash.
         'not null' => TRUE,
         'default' => '',
-        'description' => t('The hash of the item.'),
+        'description' => 'The hash of the item.',
       ),
     ),
     'primary key' => array('cid'),
@@ -57,18 +63,3 @@ function feeds_comment_processor_schema() {
   return $schema;
 }
 
-/**
- * Implementation of hook_install().
- */
-function feeds_comment_processor_install() {
-  // Create tables.
-  drupal_install_schema('feeds_comment_processor');
-}
-
-/**
- * Implementation of hook_uninstall().
- */
-function feeds_comment_processor_uninstall() {
-  // Remove tables.
-  drupal_uninstall_schema('feeds_comment_processor');
-}

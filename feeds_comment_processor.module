@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Implementation of hook_feeds_plugins().
+ * Implements hook_feeds_plugins().
  */
 function feeds_comment_processor_feeds_plugins() {
   $path = drupal_get_path('module', 'feeds_comment_processor');
@@ -39,11 +39,20 @@ function _feeds_comment_processor_comment(&$comment, $op) {
       }
       break;
     case 'delete':
-      db_query("DELETE FROM {feeds_comment_item} WHERE cid = %d", $comment->cid);
+      // TODO Please review the conversion of this statement to the D7 database API syntax.
+      /* db_query("DELETE FROM {feeds_comment_item} WHERE cid = %d", $comment->cid) */
+      db_delete('feeds_comment_item')
+  ->condition('cid', $comment->cid)
+  ->execute();
       break;
   }
 }
 
-function feeds_comment_processor_comment(&$a1, $op) {
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function feeds_comment_processor_comment_OLD(&$a1, $op) {
+  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
   _feeds_comment_processor_comment($a1, $op);
 }
