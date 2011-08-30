@@ -408,8 +408,6 @@ function _feeds_comment_save($edit) {
   );
   if ($edit['cid']) {
     // Update the comment in the database.
-    // TODO Please review the conversion of this statement to the D7 database API syntax.
-    /* db_query("UPDATE {comments} SET status = %d, timestamp = %d, subject = '%s', comment = '%s', format = %d, uid = %d, name = '%s', mail = '%s', homepage = '%s' WHERE cid = %d", $edit['status'], $edit['timestamp'], $edit['subject'], $edit['comment'], $edit['format'], $edit['uid'], $edit['name'], $edit['mail'], $edit['homepage'], $edit['cid']) */
     db_update('comments')
   ->fields(array(
       'status' => $edit['status'],
@@ -485,8 +483,6 @@ function _feeds_comment_save($edit) {
       $edit['name'] = $user->name;
     }
 
-    // TODO Please review the conversion of this statement to the D7 database API syntax.
-    /* db_query("INSERT INTO {comments} (nid, pid, uid, subject, comment, format, hostname, timestamp, status, thread, name, mail, homepage) VALUES (%d, %d, %d, '%s', '%s', %d, '%s', %d, %d, '%s', '%s', '%s', '%s')", $edit['nid'], $edit['pid'], $edit['uid'], $edit['subject'], $edit['comment'], $edit['format'], empty($edit['hostname']) ? ip_address() : $edit['hostname'], $edit['timestamp'], $edit['status'], $thread, $edit['name'], $edit['mail'], $edit['homepage']) */
     $id = db_insert('comments')
   ->fields(array(
       'nid' => $edit['nid'],

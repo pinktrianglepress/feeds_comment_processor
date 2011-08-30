@@ -22,37 +22,30 @@ function feeds_comment_processor_feeds_plugins() {
 }
 
 /**
- * Handles FeedsCommentProcessor specific hook_comment operations.
+ * Implements hook_comment_insert().
  */
-function _feeds_comment_processor_comment(&$comment, $op) {
-  switch ($op) {
-    case 'insert':
-      if (isset($comment['feeds_comment_item'])) {
-        $comment['feeds_comment_item']->cid = $comment['cid'];
-        drupal_write_record('feeds_comment_item', $comment['feeds_comment_item']);
-      }
-      break;
-    case 'update':
-      if (isset($comment['feeds_comment_item'])) {
-        $comment['feeds_comment_item']->cid = $comment['cid'];
-        drupal_write_record('feeds_comment_item', $comment['feeds_comment_item'], 'cid');
-      }
-      break;
-    case 'delete':
-      // TODO Please review the conversion of this statement to the D7 database API syntax.
-      /* db_query("DELETE FROM {feeds_comment_item} WHERE cid = %d", $comment->cid) */
-      db_delete('feeds_comment_item')
-  ->condition('cid', $comment->cid)
-  ->execute();
-      break;
+function feeds_comment_processor_comment_insert(&$comment) {
+  if (isset($comment['feeds_comment_item'])) {
+    $comment['feeds_comment_item']->cid = $comment['cid'];
+    drupal_write_record('feeds_comment_item', $comment['feeds_comment_item']);
   }
 }
 
 /**
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
+ * Implements hook_comment_update().
  */
-function feeds_comment_processor_comment_OLD(&$a1, $op) {
-  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
-  _feeds_comment_processor_comment($a1, $op);
+function feeds_comment_processor_comment_update(&$comment) {
+  if (isset($comment['feeds_comment_item'])) {
+    $comment['feeds_comment_item']->cid = $comment['cid'];
+    drupal_write_record('feeds_comment_item', $comment['feeds_comment_item'], 'cid');
+  }
+}
+
+/**
+ * Implements hook_comment_delete().
+ */
+function feeds_comment_processor_comment_delete(&$comment) {
+  db_delete('feeds_comment_item')
+  ->condition('cid', $comment->cid)
+  ->execute();
 }
