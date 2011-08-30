@@ -121,7 +121,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   public function configDefaults() {
     return array(
-      'input_format' => FILTER_FORMAT_DEFAULT,
+      'input_format' => filter_format_default(),
       'update_existing' => FEEDS_SKIP_EXISTING,
       'expire' => FEEDS_EXPIRE_NEVER,
       'mappings' => array(),
