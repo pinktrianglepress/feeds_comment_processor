@@ -18,98 +18,75 @@ define('FEEDS_COMMENT_UPDATE_EXISTING', 2);
  * Creates comments from feed items.
  */
 class FeedsCommentProcessor extends FeedsProcessor {
-
   /**
-   * Implementation of FeedsProcessor::process().
+   * Define entity type.
    */
-  public function process(FeedsImportBatch $batch, FeedsSource $source) {
-
-    // Keep track of processed items in this pass.
-    $processed = 0;
-    if (!$batch->getTotal(FEEDS_PROCESSING)) {
-      $batch->setTotal(FEEDS_PROCESSING, $batch->getItemCount());
-    }
-
-    while ($item = $batch->shiftItem()) {
-
-      // Create/update if item does not exist or update existing is enabled.
-      if (!($cid = $this->existingItemId($batch, $source)) || ($this->config['update_existing'] != FEEDS_SKIP_EXISTING)) {
-        // Only proceed if item has actually changed.
-        $hash = $this->hash($item);
-        if (!empty($cid) && $hash == $this->getHash($cid)) {
-          continue;
-        }
-
-        $comment = $this->buildComment($cid, $source->feed_nid);
-        $comment->feeds_comment_item->hash = $hash;
-
-        // Map and save comment. If errors occur don't stop but report them.
-        try {
-          $this->map($batch, $comment);
-          if (empty($comment->nid)) {
-            throw new Exception("Unable create comment with empty NID");
-          }
-          _feeds_comment_save((array) $comment);
-          if (!empty($cid)) {
-            $batch->updated++;
-          }
-          else {
-            $batch->created++;
-          }
-        }
-        catch (Exception $e) {
-          drupal_set_message($e->getMessage(), 'warning');
-          watchdog('feeds', $e->getMessage(), array(), WATCHDOG_WARNING);
-        }
-      }
-
-      $processed++;
-      if ($processed >= variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE)) {
-        $batch->setProgress(FEEDS_PROCESSING, $batch->created + $batch->updated);
-        return;
-      }
-    }
-
-    // Set messages.
-    if ($batch->created) {
-      drupal_set_message(format_plural($batch->created, 'Created @number comment', 'Created @number comments.', array('@number' => $batch->created)));
-    }
-    elseif ($batch->updated) {
-      drupal_set_message(format_plural($batch->updated, 'Updated @number comment.', 'Updated @number comments.', array('@number' => $batch->updated)));
-    }
-    else {
-      drupal_set_message(t('There are no new comments.'));
-    }
-    $batch->setProgress(FEEDS_PROCESSING, FEEDS_BATCH_COMPLETE);
+  public function entityType() {
+    return 'user';
   }
 
   /**
-   * Implementation of FeedsProcessor::clear().
+   * Implements parent::entityInfo().
    */
-  public function clear(FeedsBatch $batch, FeedsSource $source) {
-    if (!$batch->getTotal(FEEDS_CLEARING)) {
-      $total = db_query("SELECT COUNT(cid) FROM {feeds_comment_item} WHERE id = :id AND feed_nid = :feed_nid", array(':id' => $source->id, ':feed_nid' => $source->feed_nid))->fetchField();
-      $batch->setTotal(FEEDS_CLEARING, $total);
-    }
-    $result = db_query_range("SELECT cid FROM {feeds_comment_item} WHERE id = '%s' AND feed_nid = %d", $source->id, $source->feed_nid, 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE));
-    while ($comment = db_fetch_object($result)) {
-      _feeds_comment_delete($comment->cid);
-      $batch->deleted++;
-    }
-    if (db_result(db_query_range("SELECT cid FROM {feeds_comment_item} WHERE id = '%s' AND feed_nid = %d", $source->id, $source->feed_nid, 0, 1))) {
-      $batch->setProgress(FEEDS_CLEARING, $batch->deleted);
-      return;
-    }
+  protected function entityInfo() {
+    $info = parent::entityInfo();
+    $info['label plural'] = t('Comments');
+    return $info;
+  }
 
-    // Set message.
-    drupal_get_messages('status');
-    if ($batch->deleted) {
-      drupal_set_message(format_plural($batch->deleted, 'Deleted @number comment.', 'Deleted @number comments.', array('@number' => $batch->deleted)));
+  /**
+   * Creates a new comment in memory and returns it.
+   */
+  protected function newEntity(FeedsSource $source) {
+    $comment = new stdClass();
+    $comment->created = FEEDS_REQUEST_TIME;
+    $comment->timestamp = FEEDS_REQUEST_TIME;
+    $comment->format = $this->config['input_format'];
+    $comment->feeds_comment_item = new stdClass();
+    $comment->feeds_comment_item->id = $this->id;
+    $comment->feeds_comment_item->imported = FEEDS_REQUEST_TIME;
+    $comment->feeds_comment_item->feed_nid = $source->feed_nid;
+    $comment->feeds_comment_item->guid = '';
+    $comment->uid = $this->config['author'];
+    $account = user_load($comment->uid);
+    $comment->name = $account->name;
+    $comment->mail = $account->mail;
+    $comment->status = 0;
+    $comment->pid = 0;
+    $comment->hostname = '127.0.0.1';
+    return $comment;
+  }
+
+  /**
+   * Loads an existing comment.
+   */
+  protected function entityLoad(FeedsSource $source, $cid) {
+    return comment_load($cid);
+  }
+
+  /**
+   * Validates a comment.
+   */
+  protected function entityValidate($comment) {
+    if (empty($comment->nid)) {
+      throw new FeedsValidationException(t('Unable create comment with empty NID.'));
     }
-    else {
-      drupal_set_message(t('There is no content to be deleted.'));
+  }
+
+  /**
+   * Save a comment.
+   */
+  public function entitySave($comment) {
+    _feeds_comment_save((array)$comment);
+  }
+
+  /**
+   * Delete multiple comments.
+   */
+  protected function entityDeleteMultiple($cids) {
+    foreach ($cids as $cid) {
+      _feeds_comment_delete($cid);
     }
-    $batch->setProgress(FEEDS_CLEARING, FEEDS_BATCH_COMPLETE);
   }
 
   /**
@@ -122,11 +99,11 @@ class FeedsCommentProcessor extends FeedsProcessor {
     if ($time == FEEDS_EXPIRE_NEVER) {
       return;
     }
-    $result = db_query_range("SELECT c.cid FROM {comments} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE));
+    $result = db_query_range("SELECT c.cid FROM {comments} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE), array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time));
     while ($comment = db_fetch_object($result)) {
       _feeds_comment_delete($comment->nid);
     }
-    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.nid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, 1))) {
+    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, 1, array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time)))) {
       return FEEDS_BATCH_ACTIVE;
     }
     return FEEDS_BATCH_COMPLETE;
@@ -203,7 +180,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    * Override parent::configFormValidate().
    */
   public function configFormValidate(&$values) {
-    if ($author = user_load(array('name' => $values['author']))) {
+    if ($author = user_load_by_name($values['author'])) {
       $values['author'] = $author->uid;
     }
     else {
@@ -289,14 +266,17 @@ class FeedsCommentProcessor extends FeedsProcessor {
   /**
    * Get cid of an existing feed item comment if available.
    */
-  protected function existingItemId($source_item, FeedsSource $source) {
+  protected function existingEntityId(FeedsSource $source, FeedsParserResult $result) {
+    if ($cid = parent::existingEntityId($source, $result)) {
+      return $cid;
+    }
 
     // Iterate through all unique targets and test whether they do already
     // exist in the database.
-    foreach ($this->uniqueTargets($source_item) as $target => $value) {
+    foreach ($this->uniqueTargets($source, $result) as $target => $value) {
       switch ($target) {
         case 'guid':
-          $cid = db_query("SELECT cid FROM {feeds_comment_item} WHERE feed_nid = :feed_nid AND id = :id AND guid = :id", array(':feed_nid' => $source->feed_nid, ':id' => $source->id, ':guid' => $value))->fetchField();
+          $cid = db_query("SELECT cid FROM {feeds_comment_item} WHERE feed_nid = :feed_nid AND id = :id AND guid = :guid", array(':feed_nid' => $source->feed_nid, ':id' => $source->id, ':guid' => $value))->fetchField();
           break;
       }
       if ($cid) {
@@ -305,76 +285,6 @@ class FeedsCommentProcessor extends FeedsProcessor {
       }
     }
     return 0;
-  }
-
-  /**
-   * Creates a new comment object in memory and returns it.
-   */
-  protected function buildComment($cid, $feed_nid) {
-    $comment = new stdClass();
-    if (empty($cid)) {
-      $comment->created = FEEDS_REQUEST_TIME;
-      $populate = TRUE;
-    }
-    else {
-      if ($this->config['update_existing'] == FEEDS_UPDATE_EXISTING) {
-        $comment = comment_load($cid);
-      }
-      else {
-        $comment->cid = $cid;
-        $populate = TRUE;
-      }
-    }
-    if ($populate) {
-      $comment->timestamp = FEEDS_REQUEST_TIME;
-      $comment->format = $this->config['input_format'];
-      $comment->feeds_comment_item = new stdClass();
-      $comment->feeds_comment_item->id = $this->id;
-      $comment->feeds_comment_item->imported = FEEDS_REQUEST_TIME;
-      $comment->feeds_comment_item->feed_nid = $feed_nid;
-      $comment->feeds_comment_item->guid = '';
-      $comment->uid = $this->config['author'];
-      $account = user_load($comment->uid);
-      $comment->name = $account->name;
-      $comment->mail = $account->mail;
-      $comment->status = 0;
-      $comment->pid = 0;
-      $comment->hostname = '127.0.0.1';
-
-    }
-
-    return $comment;
-  }
-
-  /**
-   * Create MD5 hash of item and mappings array.
-   *
-   * Include mappings as a change in mappings may have an affect on the item
-   * produced.
-   *
-   * @return Always returns a hash, even with empty, NULL, FALSE:
-   *  Empty arrays return 40cd750bba9870f18aada2478b24840a
-   *  Empty/NULL/FALSE strings return d41d8cd98f00b204e9800998ecf8427e
-   */
-  protected function hash($item) {
-    static $serialized_mappings;
-    if (!$serialized_mappings) {
-      $serialized_mappings = serialize($this->config['mappings']);
-    }
-    return hash('md5', serialize($item) . $serialized_mappings);
-  }
-
-  /**
-   * Retrieve MD5 hash of $cid from DB.
-   * @return Empty string if no item is found, hash otherwise.
-   */
-  protected function getHash($cid) {
-    $hash = db_query("SELECT hash FROM {feeds_comment_item} WHERE cid = :cid", array(':cid' => $cid))->fetchField();
-    if ($hash) {
-      // Return with the hash.
-      return $hash;
-    }
-    return '';
   }
 }
 

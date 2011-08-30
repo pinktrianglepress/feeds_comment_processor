@@ -44,13 +44,6 @@ function feeds_comment_processor_schema() {
         'not null' => TRUE,
         'description' => 'Unique identifier for the feed item.',
       ),
-      'hash' => array(
-        'type' => 'varchar',
-        'length' => 32, // The length of an MD5 hash.
-        'not null' => TRUE,
-        'default' => '',
-        'description' => 'The hash of the item.',
-      ),
     ),
     'primary key' => array('cid'),
     'indexes' => array(
