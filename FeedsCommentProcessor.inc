@@ -134,7 +134,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   public function configForm(&$form_state) {
     $form = array();
-    $format_options = array(FILTER_FORMAT_DEFAULT => t('Default format'));
+    $format_options = array(filter_default_format() => t('Default format'));
     $formats = filter_formats();
     foreach ($formats as $format) {
       $format_options[$format->format] = $format->name;
