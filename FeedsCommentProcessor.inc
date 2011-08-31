@@ -22,7 +22,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    * Define entity type.
    */
   public function entityType() {
-    return 'user';
+    return 'comment';
   }
 
   /**
