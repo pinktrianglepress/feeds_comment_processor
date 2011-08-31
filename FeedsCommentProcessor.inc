@@ -197,7 +197,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
         $target_comment->feeds_comment_item->guid = $value;
         break;
       default:
-        parent::setTargetElement($source, $target_node, $target_element, $value);
+        parent::setTargetElement($source, $target_comment, $target_element, $value);
         break;
     }
   }
