@@ -39,6 +39,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   protected function newEntity(FeedsSource $source) {
     $comment = new stdClass();
+    $comment->cid = 0;
     $comment->pid = 0;
     $comment->uid = $this->config['author'];
     $account = user_load($comment->uid);
@@ -46,6 +47,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
     $comment->name = $account->name;
     $comment->hostname = '127.0.0.1';
     $comment->created = FEEDS_REQUEST_TIME;
+    $comment->is_anonymous = 0;
     $comment->status = 0;
     $comment->language = LANGUAGE_NONE;
     $comment->comment_body[$comment->language][0]['format'] = $this->config['input_format'];
@@ -281,7 +283,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
           break;
       }
       if ($cid) {
-        // Return with the first nid found.
+        // Return with the first cid found.
         return $cid;
       }
     }
