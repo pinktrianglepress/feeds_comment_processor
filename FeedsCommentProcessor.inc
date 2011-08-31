@@ -69,7 +69,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   protected function entityValidate($comment) {
     if (empty($comment->nid)) {
-      throw new FeedsValidationException(t('Unable create comment with empty NID.'));
+      throw new FeedsValidationException(t('Unable to create comment with empty NID.'));
     }
   }
 
@@ -318,7 +318,7 @@ function _feeds_comment_save($edit) {
     'name' => '',
     'status' => user_access('post comments without approval') ? COMMENT_PUBLISHED : COMMENT_NOT_PUBLISHED,
   );
-  if ($edit['cid']) {
+  if (isset($edit['cid'])) {
     // Update the comment in the database.
     db_update('comments')
   ->fields(array(
