@@ -99,7 +99,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
     if ($time == FEEDS_EXPIRE_NEVER) {
       return;
     }
-    $result = db_query_range("SELECT c.cid FROM {comments} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE), array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time));
+    $result = db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE), array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time));
     while ($comment = db_fetch_object($result)) {
       _feeds_comment_delete($comment->nid);
     }
@@ -320,7 +320,7 @@ function _feeds_comment_save($edit) {
   );
   if (isset($edit['cid'])) {
     // Update the comment in the database.
-    db_update('comments')
+    db_update('comment')
   ->fields(array(
       'status' => $edit['status'],
       'timestamp' => $edit['timestamp'],
@@ -348,7 +348,7 @@ function _feeds_comment_save($edit) {
     if ($edit['pid'] == 0) {
       // This is a comment with no parent comment (depth 0): we start
       // by retrieving the maximum thread level.
-      $max = db_query('SELECT MAX(thread) FROM {comments} WHERE nid = :nid', array(':nid' => $edit['nid']))->fetchField();
+      $max = db_query('SELECT MAX(thread) FROM {comment} WHERE nid = :nid', array(':nid' => $edit['nid']))->fetchField();
 
       // Strip the "/" from the end of the thread.
       $max = rtrim($max, '/');
@@ -367,7 +367,7 @@ function _feeds_comment_save($edit) {
       $parent->thread = (string) rtrim((string) $parent->thread, '/');
 
       // Get the max value in _this_ thread.
-      $max = db_query("SELECT MAX(thread) FROM {comments} WHERE thread LIKE '%s.%%' AND nid = :nid", array(':nid' => $parent->thread, '' => $edit['nid']))->fetchField();
+      $max = db_query("SELECT MAX(thread) FROM {comment} WHERE thread LIKE '%s.%%' AND nid = :nid", array(':nid' => $parent->thread, '' => $edit['nid']))->fetchField();
 
       if ($max == '') {
         // First child of this parent.
@@ -395,7 +395,7 @@ function _feeds_comment_save($edit) {
       $edit['name'] = $user->name;
     }
 
-    $id = db_insert('comments')
+    $id = db_insert('comment')
   ->fields(array(
       'nid' => $edit['nid'],
       'pid' => $edit['pid'],
@@ -412,7 +412,7 @@ function _feeds_comment_save($edit) {
       'homepage' => $edit['homepage'],
     ))
   ->execute();
-    $edit['cid'] = db_last_insert_id('comments', 'cid');
+    $edit['cid'] = db_last_insert_id('comment', 'cid');
 
     // Tell the other modules a new comment has been submitted.
     comment_invoke_comment($edit, 'insert');
