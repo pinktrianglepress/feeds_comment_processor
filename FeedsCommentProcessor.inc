@@ -191,12 +191,14 @@ class FeedsCommentProcessor extends FeedsProcessor {
   /**
    * Override setTargetElement to operate on a target item that is a comment.
    */
-  public function setTargetElement($target_comment, $target_element, $value) {
-    if (in_array($target_element, array('guid'))) {
-      $target_comment->feeds_comment_item->$target_element = $value;
-    }
-    elseif (array_key_exists($target_element, $this->getMappingTargets())) {
-      $target_comment->$target_element = $value;
+  public function setTargetElement(FeedsSource $source, $target_comment, $target_element, $value) {
+    switch ($target_element) {
+      case 'guid':
+        $target_comment->feeds_comment_item->guid = $value;
+        break;
+      default:
+        parent::setTargetElement($source, $target_node, $target_element, $value);
+        break;
     }
   }
 
@@ -258,7 +260,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
 
     // Let other modules expose mapping targets.
     self::loadMappers();
-    drupal_alter('feeds_comment_processor_targets', $targets);
+    feeds_alter('feeds_comment_processor_targets', $targets);
 
     return $targets;
   }
