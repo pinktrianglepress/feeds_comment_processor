@@ -39,20 +39,21 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   protected function newEntity(FeedsSource $source) {
     $comment = new stdClass();
+    $comment->pid = 0;
+    $comment->uid = $this->config['author'];
+    $account = user_load($comment->uid);
+    $comment->mail = $account->mail;
+    $comment->name = $account->name;
+    $comment->hostname = '127.0.0.1';
     $comment->created = FEEDS_REQUEST_TIME;
-    $comment->format = $this->config['input_format'];
+    $comment->status = 0;
+    $comment->language = LANGUAGE_NONE;
+    $comment->comment_body[$comment->language][0]['format'] = $this->config['input_format'];
     $comment->feeds_comment_item = new stdClass();
     $comment->feeds_comment_item->id = $this->id;
     $comment->feeds_comment_item->imported = FEEDS_REQUEST_TIME;
     $comment->feeds_comment_item->feed_nid = $source->feed_nid;
     $comment->feeds_comment_item->guid = '';
-    $comment->uid = $this->config['author'];
-    $account = user_load($comment->uid);
-    $comment->name = $account->name;
-    $comment->mail = $account->mail;
-    $comment->status = 0;
-    $comment->pid = 0;
-    $comment->hostname = '127.0.0.1';
     return $comment;
   }
 
@@ -76,6 +77,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
    * Save a comment.
    */
   public function entitySave($comment) {
+    comment_submit($comment);
     comment_save($comment);
   }
 
