@@ -194,6 +194,9 @@ class FeedsCommentProcessor extends FeedsProcessor {
    */
   public function setTargetElement(FeedsSource $source, $target_comment, $target_element, $value) {
     switch ($target_element) {
+      case 'comment':
+        $target_comment->comment_body[$target_comment->language][0]['value'] = $value;
+        break;
       case 'guid':
         $target_comment->feeds_comment_item->guid = $value;
         break;
