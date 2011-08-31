@@ -397,19 +397,22 @@ function _feeds_comment_save($edit) {
 
     $id = db_insert('comment')
   ->fields(array(
-      'nid' => $edit['nid'],
       'pid' => $edit['pid'],
+      'nid' => $edit['nid'],
       'uid' => $edit['uid'],
       'subject' => $edit['subject'],
-      'comment' => $edit['comment'],
-      'format' => $edit['format'],
       'hostname' => empty($edit['hostname']) ? ip_address() : $edit['hostname'],
-      'timestamp' => $edit['timestamp'],
+      'created' => $edit['timestamp'],
+      'changed' => $edit['timestamp'],
       'status' => $edit['status'],
       'thread' => $thread,
       'name' => $edit['name'],
       'mail' => $edit['mail'],
       'homepage' => $edit['homepage'],
+      'comment' => $edit['comment'],
+      'format' => $edit['format'],
+      'timestamp' => $edit['timestamp'],
+
     ))
   ->execute();
     $edit['cid'] = db_last_insert_id('comment', 'cid');
