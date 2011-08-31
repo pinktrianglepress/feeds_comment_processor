@@ -40,7 +40,6 @@ class FeedsCommentProcessor extends FeedsProcessor {
   protected function newEntity(FeedsSource $source) {
     $comment = new stdClass();
     $comment->created = FEEDS_REQUEST_TIME;
-    $comment->timestamp = FEEDS_REQUEST_TIME;
     $comment->format = $this->config['input_format'];
     $comment->feeds_comment_item = new stdClass();
     $comment->feeds_comment_item->id = $this->id;
@@ -77,16 +76,14 @@ class FeedsCommentProcessor extends FeedsProcessor {
    * Save a comment.
    */
   public function entitySave($comment) {
-    _feeds_comment_save((array)$comment);
+    comment_save($comment);
   }
 
   /**
    * Delete multiple comments.
    */
   protected function entityDeleteMultiple($cids) {
-    foreach ($cids as $cid) {
-      _feeds_comment_delete($cid);
-    }
+    comment_delete_multiple($cids);
   }
 
   /**
@@ -99,11 +96,11 @@ class FeedsCommentProcessor extends FeedsProcessor {
     if ($time == FEEDS_EXPIRE_NEVER) {
       return;
     }
-    $result = db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE), array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time));
+    $result = db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.cid WHERE fci.id = :id AND c.created < :timestamp", 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE), array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time));
     while ($comment = db_fetch_object($result)) {
-      _feeds_comment_delete($comment->nid);
+      comment_delete($comment->cid);
     }
-    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.nid WHERE fci.id = :id AND c.timestamp < :timestamp", 0, 1, array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time)))) {
+    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.cid WHERE fci.id = :id AND c.created < :timestamp", 0, 1, array(':id' => $this->id, ':timestamp' => FEEDS_REQUEST_TIME - $time)))) {
       return FEEDS_BATCH_ACTIVE;
     }
     return FEEDS_BATCH_COMPLETE;
@@ -231,7 +228,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
         'name' => t('Hostname'),
         'description' => t('The author\'s host name.'),
       ),
-      'timestamp' => array(
+      'created' => array(
         'name' => t('Published date'),
         'description' => t('The UNIX time when a comment has been saved.'),
       ),
@@ -288,153 +285,4 @@ class FeedsCommentProcessor extends FeedsProcessor {
     }
     return 0;
   }
-}
-
-function _feeds_comment_delete($cid) {
-  module_load_include('inc', 'comment', 'comment.admin');
-  $to_delete = comment_load($cid);
-  // Delete comment and its replies.
-  _comment_delete_thread($to_delete);
-  _comment_update_node_statistics($to_delete->nid);
-}
-
-/**
- * This function is copied and pasted from comment_save in Drupal core and then
- * modified to get rid of access restrictions and to prevent extraneous dsms.
- *
- * @param $edit
- *   A comment array.
- *
- * @return
- *   If the comment is successfully saved the comment ID is returned. If the comment
- *   is not saved, FALSE is returned.
- */
-function _feeds_comment_save($edit) {
-  global $user;
-
-  $edit += array(
-    'mail' => '',
-    'homepage' => '',
-    'name' => '',
-    'status' => user_access('post comments without approval') ? COMMENT_PUBLISHED : COMMENT_NOT_PUBLISHED,
-  );
-  if (isset($edit['cid'])) {
-    // Update the comment in the database.
-    db_update('comment')
-  ->fields(array(
-      'status' => $edit['status'],
-      'timestamp' => $edit['timestamp'],
-      'subject' => $edit['subject'],
-      'comment' => $edit['comment'],
-      'format' => $edit['format'],
-      'uid' => $edit['uid'],
-      'name' => $edit['name'],
-      'mail' => $edit['mail'],
-      'homepage' => $edit['homepage'],
-    ))
-  ->condition('cid', $edit['cid'])
-  ->execute();
-
-    // Allow modules to respond to the updating of a comment.
-    comment_invoke_comment($edit, 'update');
-
-    // Add an entry to the watchdog log.
-    watchdog('content', 'Comment: updated %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/' . $edit['nid'], array('fragment' => 'comment-' . $edit['cid'])));
-  }
-  else {
-    // Add the comment to database.
-    // Here we are building the thread field. See the documentation for
-    // comment_render().
-    if ($edit['pid'] == 0) {
-      // This is a comment with no parent comment (depth 0): we start
-      // by retrieving the maximum thread level.
-      $max = db_query('SELECT MAX(thread) FROM {comment} WHERE nid = :nid', array(':nid' => $edit['nid']))->fetchField();
-
-      // Strip the "/" from the end of the thread.
-      $max = rtrim($max, '/');
-
-      // Finally, build the thread field for this new comment.
-      $thread = int2vancode(vancode2int($max) + 1) . '/';
-    }
-    else {
-      // This is comment with a parent comment: we increase
-      // the part of the thread value at the proper depth.
-
-      // Get the parent comment:
-      $parent = comment_load($edit['pid']);
-
-      // Strip the "/" from the end of the parent thread.
-      $parent->thread = (string) rtrim((string) $parent->thread, '/');
-
-      // Get the max value in _this_ thread.
-      $max = db_query("SELECT MAX(thread) FROM {comment} WHERE thread LIKE '%s.%%' AND nid = :nid", array(':nid' => $parent->thread, '' => $edit['nid']))->fetchField();
-
-      if ($max == '') {
-        // First child of this parent.
-        $thread = $parent->thread . '.' . int2vancode(0) . '/';
-      }
-      else {
-        // Strip the "/" at the end of the thread.
-        $max = rtrim($max, '/');
-
-        // We need to get the value at the correct depth.
-        $parts = explode('.', $max);
-        $parent_depth = count(explode('.', $parent->thread));
-        $last = $parts[$parent_depth];
-
-        // Finally, build the thread field for this new comment.
-        $thread = $parent->thread . '.' . int2vancode(vancode2int($last) + 1) . '/';
-      }
-    }
-
-    if (empty($edit['timestamp'])) {
-      $edit['timestamp'] = REQUEST_TIME;
-    }
-
-    if ($edit['uid'] === $user->uid && isset($user->name)) { // '===' Need to modify anonymous users as well.
-      $edit['name'] = $user->name;
-    }
-
-    $id = db_insert('comment')
-  ->fields(array(
-      'pid' => $edit['pid'],
-      'nid' => $edit['nid'],
-      'uid' => $edit['uid'],
-      'subject' => $edit['subject'],
-      'hostname' => empty($edit['hostname']) ? ip_address() : $edit['hostname'],
-      'created' => $edit['timestamp'],
-      'changed' => $edit['timestamp'],
-      'status' => $edit['status'],
-      'thread' => $thread,
-      'name' => $edit['name'],
-      'mail' => $edit['mail'],
-      'homepage' => $edit['homepage'],
-      'comment' => $edit['comment'],
-      'format' => $edit['format'],
-      'timestamp' => $edit['timestamp'],
-
-    ))
-  ->execute();
-    $edit['cid'] = db_last_insert_id('comment', 'cid');
-
-    // Tell the other modules a new comment has been submitted.
-    comment_invoke_comment($edit, 'insert');
-
-    // Add an entry to the watchdog log.
-    watchdog('content', 'Comment: added %subject.', array('%subject' => $edit['subject']), WATCHDOG_NOTICE, l(t('view'), 'node/' . $edit['nid'], array('fragment' => 'comment-' . $edit['cid'])));
-  }
-  _comment_update_node_statistics($edit['nid']);
-
-  // Clear the cache so an anonymous user can see his comment being added.
-  cache_clear_all();
-
-  // Explain the approval queue if necessary, and then
-  // redirect the user to the node he's commenting on.
-  if ($edit['status'] == COMMENT_NOT_PUBLISHED) {
-    drupal_set_message(t('Your comment has been queued for moderation by site administrators and will be published after approval.'));
-  }
-  else {
-    comment_invoke_comment($edit, 'publish');
-  }
-  return $edit['cid'];
 }
