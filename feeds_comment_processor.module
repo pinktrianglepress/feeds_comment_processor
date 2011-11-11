@@ -47,3 +47,11 @@ function _feeds_comment_processor_comment(&$comment, $op) {
 function feeds_comment_processor_comment(&$a1, $op) {
   _feeds_comment_processor_comment($a1, $op);
 }
+
+/**
+ * Clear Feeds' cache on FCP enable - without this, Feeds may complain
+ * about missing plugins
+ */
+function feeds_comment_processor_enable() {
+  cache_clear_all('plugins:feeds:plugins', 'cache');
+}
