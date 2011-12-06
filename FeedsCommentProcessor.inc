@@ -132,11 +132,11 @@ class FeedsCommentProcessor extends FeedsProcessor {
     if ($time == FEEDS_EXPIRE_NEVER) {
       return;
     }
-    $result = db_query_range("SELECT c.cid FROM {comments} c INNER JOIN {feeds_comment_item} fci ON c.cid = fni.nid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE));
+    $result = db_query_range("SELECT c.cid FROM {comments} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.cid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, variable_get('feeds_comment_batch_size', FEEDS_COMMENT_BATCH_SIZE));
     while ($comment = db_fetch_object($result)) {
-      _feeds_comment_delete($comment->nid);
+      _feeds_comment_delete($comment->cid);
     }
-    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.nid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, 1))) {
+    if (db_result(db_query_range("SELECT c.cid FROM {comment} c INNER JOIN {feeds_comment_item} fci ON c.cid = fci.cid WHERE fci.id = '%s' AND c.timestamp < %d", $this->id, FEEDS_REQUEST_TIME - $time, 0, 1))) {
       return FEEDS_BATCH_ACTIVE;
     }
     return FEEDS_BATCH_COMPLETE;
