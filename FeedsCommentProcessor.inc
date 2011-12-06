@@ -49,6 +49,16 @@ class FeedsCommentProcessor extends FeedsProcessor {
           if (empty($comment->nid)) {
             throw new Exception("Unable create comment with empty NID");
           }
+          if ($this->config['authorize']) {
+            $account = user_load($comment->uid);
+            if (!user_access('post comments')) {
+              throw new Exception('User ' . $account->uid . ' not authorized to post comments.');
+            }
+          }
+          $node = node_load($comment->nid);
+          if ($node->comment != 2) {
+            throw new Exception('Comments are not allowed for this node.');
+          }
           _feeds_comment_save((array)$comment);
           if (!empty($cid)) {
             $batch->updated++;
@@ -149,6 +159,7 @@ class FeedsCommentProcessor extends FeedsProcessor {
       'expire' => FEEDS_EXPIRE_NEVER,
       'mappings' => array(),
       'author' => 0,
+      'authorize' => 0,
     );
   }
 
@@ -176,6 +187,12 @@ class FeedsCommentProcessor extends FeedsProcessor {
       '#description' => t('Select the author of the comments to be created - leave empty to assign "anonymous".'),
       '#autocomplete_path' => 'user/autocomplete',
       '#default_value' => empty($author->name) ?  'anonymous' : check_plain($author->name),
+    );
+    $form['authorize'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Authorize'),
+      '#description' => t('Check that the author has permission to create the node.'),
+      '#default_value' => $this->config['authorize'],
     );
     $period = drupal_map_assoc(array(FEEDS_EXPIRE_NEVER, 3600, 10800, 21600, 43200, 86400, 259200, 604800, 604800 * 4, 604800 * 12, 604800 * 24, 31536000), 'feeds_format_expire');
     $form['expire'] = array(
